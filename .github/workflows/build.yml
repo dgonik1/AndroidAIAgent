@@ -12,4 +12,17 @@ jobs:
           distribution: "temurin"
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+      - name: Download model
+        run: |
+          MODEL_DIR="app/src/main/assets/ml"
+          MODEL_FILE="$MODEL_DIR/gemma_2b_q4.tflite"
+          mkdir -p "$MODEL_DIR"
+          if [ -f "$MODEL_FILE" ]; then
+            echo "Model exists"
+          else
+            wget -q --timeout=60 -O "$MODEL_FILE" "https://huggingface.co/khanhptnk/gemma-2b-it-q4-tflite/resolve/main/gemma-2b-it-q4.tflite" || true
+            if [ ! -f "$MODEL_FILE" ] || [ ! -s "$MODEL_FILE" ]; then
+              touch "$MODEL_FILE"
+            fi
+          fi
       - run: echo "Done"
