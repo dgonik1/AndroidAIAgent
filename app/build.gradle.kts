@@ -39,7 +39,7 @@ android {
     }
 
     aaptOptions {
-        noCompress("tflite")
+        noCompress = listOf("tflite")
     }
 }
 

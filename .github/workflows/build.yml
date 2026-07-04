@@ -16,6 +16,21 @@ jobs:
           curl -L -s -o gradle/wrapper/gradle-wrapper.jar \
             "https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar"
           chmod +x gradlew
+      - name: Download Gemma 2B model
+        run: |
+          MODEL_DIR="app/src/main/assets/ml"
+          MODEL_FILE="$MODEL_DIR/gemma_2b_q4.tflite"
+          mkdir -p "$MODEL_DIR"
+          if [ -f "$MODEL_FILE" ]; then
+            echo "Model exists, skipping"
+          else
+            echo "Downloading model..."
+            wget -q --timeout=60 -O "$MODEL_FILE" "https://huggingface.co/khanhptnk/gemma-2b-it-q4-tflite/resolve/main/gemma-2b-it-q4.tflite" || true
+            if [ ! -f "$MODEL_FILE" ] || [ ! -s "$MODEL_FILE" ]; then
+              echo "Download failed, building without model"
+              touch "$MODEL_FILE"
+            fi
+          fi
       - name: Build with Gradle
         run: ./gradlew assembleDebug
       - name: Upload APK

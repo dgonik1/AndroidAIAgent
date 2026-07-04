@@ -1,8 +1,8 @@
 package com.example.aiagent.agent
 
 import android.content.Context
-import com.google.mediapipe.tasks.genai.llm.LlmInterpreter
-import com.google.mediapipe.tasks.genai.llm.LlmInterpreterOptions
+import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.mediapipe.tasks.genai.llminference.ProgressListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 
 class LLMEngine(private val context: Context) {
 
-    private var interpreter: LlmInterpreter? = null
+    private var inference: LlmInference? = null
     private var initialized = false
     private var initError: String? = null
 
@@ -40,14 +40,12 @@ class LLMEngine(private val context: Context) {
                 }
             }
 
-            val options = LlmInterpreterOptions.builder()
+            val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
                 .setMaxTokens(2048)
-                .setTemperature(0.7f)
-                .setTopK(40)
                 .build()
 
-            interpreter = LlmInterpreter.createFromOptions(context, options)
+            inference = LlmInference.createFromOptions(context, options)
             initialized = true
         } catch (e: Exception) {
             initError = "Failed to initialize LLM: ${e.message}"
@@ -64,27 +62,23 @@ class LLMEngine(private val context: Context) {
 
         return withContext(Dispatchers.IO) {
             try {
+                val engine = inference ?: return@withContext "Error: LLM not initialized"
                 val result = StringBuilder()
                 val latch = CountDownLatch(1)
                 var genError: String? = null
 
-                val callback = object : LlmInterpreter.ResultCallback {
-                    override fun onResult(partialResult: String, done: Boolean) {
+                val future = engine.generateResponseAsync(
+                    prompt,
+                    ProgressListener { partialResult: String, done: Boolean ->
                         result.append(partialResult)
                         if (done) {
                             latch.countDown()
                         }
                     }
-                }
-
-                try {
-                    interpreter?.generate(prompt, callback)
-                } catch (e: Exception) {
-                    genError = "Generation error: ${e.message}"
-                    latch.countDown()
-                }
+                )
 
                 if (!latch.await(90, TimeUnit.SECONDS)) {
+                    future.cancel(true)
                     return@withContext "Error: Generation timed out after 90 seconds"
                 }
 
@@ -97,8 +91,8 @@ class LLMEngine(private val context: Context) {
     }
 
     fun close() {
-        interpreter?.close()
-        interpreter = null
+        inference?.close()
+        inference = null
         initialized = false
     }
 }

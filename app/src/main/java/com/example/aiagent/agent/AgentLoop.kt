@@ -128,40 +128,36 @@ Remember: respond ONLY with JSON, no other text."""
     }
 
     private fun parseLLMResponse(response: String): ParsedResponse {
-        val jsonStr = extractJson(response)
-        if (jsonStr != null) {
-            try {
-                val json = JSONObject(jsonStr)
-                val action = json.optString("action", "")
+        val jsonStr = extractJson(response) ?: return ParsedError()
+        return try {
+            val json = JSONObject(jsonStr)
+            val action = json.optString("action", "")
 
-                return when (action) {
-                    "respond" -> {
-                        val content = json.optString("content", "")
-                        if (content.isBlank()) {
-                            ParsedFinalResponse(response)
-                        } else {
-                            ParsedFinalResponse(content)
-                        }
-                    }
-                    else -> {
-                        if (action.isNotBlank()) {
-                            val paramsJson = json.optJSONObject("params")
-                            val params = mutableMapOf<String, String>()
-                            if (paramsJson != null) {
-                                for (key in paramsJson.keys()) {
-                                    params[key] = paramsJson.optString(key, "")
-                                }
-                            }
-                            ParsedAction(action, params)
-                        } else {
-                            ParsedError()
-                        }
+            when (action) {
+                "respond" -> {
+                    val content = json.optString("content", "")
+                    if (content.isBlank()) {
+                        ParsedFinalResponse(response)
+                    } else {
+                        ParsedFinalResponse(content)
                     }
                 }
-            } catch (e: Exception) {
-                ParsedError()
+                else -> {
+                    if (action.isNotBlank()) {
+                        val paramsJson = json.optJSONObject("params")
+                        val params = mutableMapOf<String, String>()
+                        if (paramsJson != null) {
+                            for (key in paramsJson.keys()) {
+                                params[key] = paramsJson.optString(key, "")
+                            }
+                        }
+                        ParsedAction(action, params)
+                    } else {
+                        ParsedError()
+                    }
+                }
             }
-        } else {
+        } catch (e: Exception) {
             ParsedError()
         }
     }
