@@ -50,18 +50,17 @@ jobs:
               if [ -n "$KAGGLE_KEY" ] && [ -n "$KAGGLE_USERNAME" ]; then
                 echo "Trying Kaggle download..."
                 pip install -q kagglehub
-                python3 -c "
-import kagglehub
-path = kagglehub.model_download('google/gemma/tfLite/gemma-2b-it-gpu-int4')
-import shutil
-import os
-for root, dirs, files in os.walk(path):
-    for f in files:
-        if f.endswith('.tflite'):
-            shutil.copy(os.path.join(root, f), '$MODEL_FILE')
-            print(f'Copied {f} to model directory')
-            break
-"
+                printf "%s\n" \
+                  "import kagglehub, shutil, os" \
+                  "path = kagglehub.model_download('google/gemma/tfLite/gemma-2b-it-gpu-int4')" \
+                  "for root, dirs, files in os.walk(path):" \
+                  "    for f in files:" \
+                  "        if f.endswith('.tflite'):" \
+                  "            shutil.copy(os.path.join(root, f), os.environ['MODEL_FILE'])" \
+                  "            print('Copied ' + f + ' to model directory')" \
+                  "            break" \
+                  > /tmp/kaggle_download.py
+                python3 /tmp/kaggle_download.py
                 if [ -f "$MODEL_FILE" ]; then
                   DOWNLOADED=true
                 fi
@@ -96,7 +95,7 @@ for root, dirs, files in os.walk(path):
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == "refs/heads/main"
         with:
           tag_name: build-${{ github.run_number }}
           name: AI Agent Build #${{ github.run_number }}
